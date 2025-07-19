@@ -11,28 +11,29 @@ import { createClient } from 'redis';
 dotenv.config();
 
 const app = express();
-app.use(express.json());
 
-// CORS - CONFIGURAÇÃO ROBUSTA E GARANTIDA
+// CORS - PRIMEIRO MIDDLEWARE (ANTES DE TUDO)
 app.use((req, res, next) => {
   // Log para debug
-  console.log(`Requisição ${req.method} para ${req.path} de origem: ${req.headers.origin}`);
+  console.log(`[CORS] ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
   
   // Headers CORS obrigatórios
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
   res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Max-Age', '86400'); // 24 horas
+  res.header('Access-Control-Max-Age', '86400');
   
   // Responder imediatamente para requisições OPTIONS (preflight)
   if (req.method === 'OPTIONS') {
-    console.log('Respondendo preflight OPTIONS');
+    console.log('[CORS] Preflight OPTIONS respondido');
     return res.status(200).end();
   }
   
   next();
 });
+
+app.use(express.json());
 
 // Conexão com o banco
 export const pool = new Pool({

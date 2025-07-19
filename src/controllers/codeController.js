@@ -25,9 +25,15 @@ function criptografarCodigo(code) {
 }
 
 export async function generateCode(req, res) {
-  const { humannumber, webhook_url } = req.body;
+  const { humannumber, webhook_url, email } = req.body;
+  
+  // Suporte para email (para compatibilidade com frontend)
+  const identifier = humannumber || email;
   const url = webhook_url || process.env.WEBHOOK_URL;
-  if (!humannumber || !url) return res.status(400).json({ error: 'humannumber e webhook_url obrigatórios.' });
+  
+  if (!identifier) {
+    return res.status(400).json({ error: 'humannumber ou email obrigatório.' });
+  }
   
   const code6 = gerarCodigo6Digitos();
   const codeJWT = criptografarCodigo(code6);
@@ -35,18 +41,27 @@ export async function generateCode(req, res) {
   try {
     // Atualiza tabela com o código de 6 dígitos criptografado
     const result = await pool.query(
-      'UPDATE infogeral SET confirm_code = $1 WHERE humannumber = $2 RETURNING id',
-      [codeJWT, humannumber]
+      'UPDATE infogeral SET confirm_code = $1 WHERE humannumber = $2 OR email = $2 RETURNING id',
+      [codeJWT, identifier]
     );
     
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Telefone não encontrado.' });
+      return res.status(404).json({ error: 'Telefone/email não encontrado.' });
     }
     
     const prefeitura_id = result.rows[0].id;
     
+    // Se não há webhook_url, retorna sucesso sem enviar
+    if (!url) {
+      return res.json({ 
+        message: 'Código gerado com sucesso.', 
+        prefeitura_id,
+        code: code6 // Retorna o código para teste
+      });
+    }
+    
     // Envia para webhook (envia o código de 6 dígitos)
-    await axios.post(url, { prefeitura_id, humannumber, code: code6 });
+    await axios.post(url, { prefeitura_id, humannumber: identifier, code: code6 });
     
     res.json({ 
       message: 'Código gerado e enviado.', 
