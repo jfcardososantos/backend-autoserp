@@ -1,0 +1,22 @@
+FROM node:18-slim
+
+WORKDIR /usr/src/app
+
+# Instalar dependências do sistema necessárias para o entrypoint
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    redis-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+
+RUN npm ci --only=production
+
+COPY . .
+
+# Tornar o script de entrada executável
+RUN chmod +x docker-entrypoint.sh
+
+EXPOSE 3000
+
+CMD ["./docker-entrypoint.sh"] 

@@ -13,15 +13,8 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// Configuração do CORS - LIBERADO PARA TODAS AS ORIGENS
-const corsOptions = {
-  origin: true, // Permite todas as origens
-  credentials: true, // Permite cookies e headers de autenticação
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
-};
 
-app.use(cors(corsOptions));
+app.use(cors());
 
 // Conexão com o banco
 export const pool = new Pool({
