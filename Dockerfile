@@ -2,7 +2,7 @@
 FROM node:18-alpine AS base
 
 # Instalar dependências necessárias para o sistema
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ curl postgresql-client redis
 
 # Definir diretório de trabalho
 WORKDIR /app
@@ -30,15 +30,18 @@ RUN adduser -S nodejs -u 1001
 # Copiar código da aplicação
 COPY --chown=nodejs:nodejs . .
 
+# Tornar o script de entrada executável
+RUN chmod +x docker-entrypoint.sh
+
 # Mudar para usuário não-root
 USER nodejs
 
 # Expor porta
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
+# Health check (comentado temporariamente para debug)
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#   CMD node -e "require('http').get('http://localhost:3000/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
 
 # Comando para iniciar a aplicação
-CMD ["npm", "start"] 
+CMD ["./docker-entrypoint.sh"] 
