@@ -19,7 +19,7 @@ const corsOptions = {
     // Lista de origens permitidas (separadas por vírgula)
     const allowedOrigins = process.env.ALLOWED_ORIGINS 
       ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-      : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8080'];
+      : ['http://localhost:3000', 'http://localhost:4200', 'http://localhost:8080'];
     
     // Permite requisições sem origin (como aplicações mobile ou Postman)
     if (!origin) return callback(null, true);
