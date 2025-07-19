@@ -1,7 +1,7 @@
 import https from 'https';
 import http from 'http';
 
-const API_URL = 'http://localhost:3333';
+const API_URL = 'https://backends-backend-autoserp.iqxn2g.easypanel.host';
 
 function makeRequest(url, options = {}) {
   return new Promise((resolve, reject) => {
@@ -47,8 +47,8 @@ function makeRequest(url, options = {}) {
   });
 }
 
-async function testLocal() {
-  console.log('🧪 Testando servidor LOCAL...\n');
+async function testProduction() {
+  console.log('🧪 Testando servidor de PRODUÇÃO...\n');
   
   // Teste 1: GET simples
   try {
@@ -103,6 +103,18 @@ async function testLocal() {
   } catch (error) {
     console.error('❌ Erro no teste 3:', error.message);
   }
+  
+  // Teste 4: Rota de teste CORS
+  try {
+    console.log('4️⃣ Testando GET /test-cors');
+    const response4 = await makeRequest(`${API_URL}/test-cors`);
+    console.log(`Status: ${response4.status}`);
+    console.log(`CORS Headers:`);
+    console.log(`  Access-Control-Allow-Origin: ${response4.headers['access-control-allow-origin']}`);
+    console.log(`Body: ${response4.body}\n`);
+  } catch (error) {
+    console.error('❌ Erro no teste 4:', error.message);
+  }
 }
 
-testLocal(); 
+testProduction(); 
