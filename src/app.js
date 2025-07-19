@@ -12,7 +12,32 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+
+// Configuração do CORS
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Lista de origens permitidas (separadas por vírgula)
+    const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+      : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8080'];
+    
+    // Permite requisições sem origin (como aplicações mobile ou Postman)
+    if (!origin) return callback(null, true);
+    
+    // Verifica se a origem está na lista de permitidas
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log(`CORS bloqueado para origem: ${origin}`);
+      callback(new Error('Não permitido pelo CORS'));
+    }
+  },
+  credentials: true, // Permite cookies e headers de autenticação
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
 
 // Conexão com o banco
 export const pool = new Pool({
