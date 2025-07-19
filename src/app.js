@@ -13,18 +13,25 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// CORS - CONFIGURAÇÃO SIMPLES E GARANTIDA
+// CORS - CONFIGURAÇÃO ROBUSTA E GARANTIDA
 app.use((req, res, next) => {
+  // Log para debug
+  console.log(`Requisição ${req.method} para ${req.path} de origem: ${req.headers.origin}`);
+  
+  // Headers CORS obrigatórios
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // 24 horas
   
+  // Responder imediatamente para requisições OPTIONS (preflight)
   if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
+    console.log('Respondendo preflight OPTIONS');
+    return res.status(200).end();
   }
+  
+  next();
 });
 
 // Conexão com o banco
@@ -80,6 +87,26 @@ app.use('/code', codeRoutes);
 
 app.get('/', (req, res) => {
   res.send('autoSERP API started');
+});
+
+// Rota de teste CORS
+app.get('/test-cors', (req, res) => {
+  console.log('Teste CORS acessado');
+  res.json({ 
+    message: 'CORS funcionando!', 
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin 
+  });
+});
+
+// Rota OPTIONS global para garantir preflight
+app.options('*', (req, res) => {
+  console.log('OPTIONS global capturado');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(200).end();
 });
 
 const PORT = process.env.PORT || 3000;

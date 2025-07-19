@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste CORS - autoSERP</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste CORS - autoSERP Backend</h1>
+    
+    <div class="test-section">
+        <h3>1. Teste GET simples</h3>
+        <button onclick="testGet()">Testar GET /test-cors</button>
+        <div id="result-get"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. Teste POST para /code/generate</h3>
+        <button onclick="testPost()">Testar POST /code/generate</button>
+        <div id="result-post"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. Teste OPTIONS (preflight)</h3>
+        <button onclick="testOptions()">Testar OPTIONS</button>
+        <div id="result-options"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://backends-backend-autoserp.iqxn2g.easypanel.host';
+        
+        function showResult(elementId, success, data) {
+            const element = document.getElementById(elementId);
+            element.className = success ? 'success' : 'error';
+            element.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+        
+        async function testGet() {
+            try {
+                const response = await fetch(`${API_URL}/test-cors`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                showResult('result-get', true, {
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    data: data
+                });
+            } catch (error) {
+                showResult('result-get', false, {
+                    error: error.message,
+                    stack: error.stack
+                });
+            }
+        }
+        
+        async function testPost() {
+            try {
+                const response = await fetch(`${API_URL}/code/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'teste@exemplo.com'
+                    })
+                });
+                
+                const data = await response.text();
+                showResult('result-post', true, {
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    data: data
+                });
+            } catch (error) {
+                showResult('result-post', false, {
+                    error: error.message,
+                    stack: error.stack
+                });
+            }
+        }
+        
+        async function testOptions() {
+            try {
+                const response = await fetch(`${API_URL}/code/generate`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                showResult('result-options', true, {
+                    status: response.status,
+                    headers: Object.fromEntries(response.headers.entries())
+                });
+            } catch (error) {
+                showResult('result-options', false, {
+                    error: error.message,
+                    stack: error.stack
+                });
+            }
+        }
+    </script>
+</body>
+</html> 
