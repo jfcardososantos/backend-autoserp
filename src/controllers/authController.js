@@ -181,3 +181,20 @@ export async function updateInfos(req, res) {
     return res.status(500).json({ error: 'Erro ao enviar para webhook.', details: err?.response?.data || err.message });
   }
 } 
+
+export async function getRecadoByInstanceAndMessageId(req, res) {
+  const { instance, messageid } = req.body;
+  if (!instance || !messageid) {
+    return res.status(400).json({ error: 'instance e messageid obrigatórios.' });
+  }
+  try {
+    const result = await pool.query('SELECT * FROM recados WHERE instance = $1 AND messageid = $2 LIMIT 1', [instance, messageid]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Recado não encontrado.' });
+    }
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Erro ao buscar recado:', err);
+    return res.status(500).json({ error: 'Erro ao buscar recado.' });
+  }
+} 
