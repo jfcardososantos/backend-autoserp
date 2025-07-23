@@ -163,18 +163,18 @@ export async function validateToken(req, res) {
 
 export async function updateInfos(req, res) {
   // Token já foi validado pelo middleware authenticateJWT
-  // humannumber vem do token decodificado
+  // Todos os dados do usuário estão em req.user
   const { functioncode } = req.body;
-  const humannumber = req.user?.humannumber;
-  if (!humannumber || !functioncode) {
-    return res.status(400).json({ error: 'humannumber (do token) e functioncode obrigatórios.' });
+  if (!functioncode) {
+    return res.status(400).json({ error: 'functioncode obrigatório.' });
   }
   const webhookUrl = process.env.WEBHOOK_URL;
   if (!webhookUrl) {
     return res.status(500).json({ error: 'WEBHOOK_URL não configurado no backend.' });
   }
   try {
-    const response = await axios.post(webhookUrl, { humannumber, functioncode });
+    const payload = { ...req.user, functioncode };
+    const response = await axios.post(webhookUrl, payload);
     return res.json({ success: true, webhookResponse: response.data });
   } catch (err) {
     console.error('Erro ao enviar para webhook:', err?.response?.data || err.message);
