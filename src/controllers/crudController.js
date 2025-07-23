@@ -49,4 +49,21 @@ export async function crudHandler(req, res) {
   } catch (err) {
     res.status(500).json({ error: 'Erro no CRUD.', details: err.message });
   }
+}
+
+export async function publicUpdateHandler(req, res) {
+  const { table, filters, data } = req.body;
+  if (!table || !filters || !data) {
+    return res.status(400).json({ error: 'table, filters e data obrigatórios.' });
+  }
+  try {
+    const set = Object.keys(data).map((k, i) => `${k} = $${i + 1}`).join(', ');
+    const setVals = Object.values(data);
+    const filterConds = Object.keys(filters).map((k, i) => `${k} = $${i + 1 + setVals.length}`);
+    const filterVals = Object.values(filters);
+    const result = await pool.query(`UPDATE ${table} SET ${set} WHERE ${filterConds.join(' AND ')} RETURNING *`, [...setVals, ...filterVals]);
+    return res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro no update público.', details: err.message });
+  }
 } 
