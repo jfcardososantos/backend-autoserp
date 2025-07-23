@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { pool } from '../app.js';
 import { redisClient } from '../app.js';
+import axios from 'axios';
 
 const jwtSecret = process.env.JWT_SECRET || 'WClPBG1pnUepCL&7_dQKx4zoPS?%@sd';
 const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '4h';
@@ -162,32 +163,21 @@ export async function validateToken(req, res) {
 
 export async function updateInfos(req, res) {
   // Token já foi validado pelo middleware authenticateJWT
-  const { humannumber, code } = req.body;
+  // humannumber vem do token decodificado
+  const { code } = req.body;
+  const humannumber = req.user?.humannumber;
   if (!humannumber || !code) {
-    return res.status(400).json({ error: 'humannumber e code obrigatórios.' });
+    return res.status(400).json({ error: 'humannumber (do token) e code obrigatórios.' });
+  }
+  const webhookUrl = process.env.WEBHOOK_URL;
+  if (!webhookUrl) {
+    return res.status(500).json({ error: 'WEBHOOK_URL não configurado no backend.' });
   }
   try {
-    // Busca o código criptografado atual
-    const result = await pool.query('SELECT confirm_code, id FROM infogeral WHERE humannumber = $1', [humannumber]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Prefeitura não encontrada.' });
-    }
-    const codeJWT = result.rows[0].confirm_code;
-    // Decodifica o JWT para comparar o código
-    try {
-      const decoded = jwt.verify(codeJWT, jwtSecret);
-      if (decoded.code !== code) {
-        return res.status(400).json({ error: 'Código inválido.' });
-      }
-    } catch (jwtErr) {
-      return res.status(400).json({ error: 'Código expirado ou inválido.' });
-    }
-    // Aqui você pode atualizar qualquer informação desejada, exemplo:
-    // await pool.query('UPDATE infogeral SET campo_exemplo = $1 WHERE id = $2', ['novo_valor', result.rows[0].id]);
-    // Por enquanto, só retorna sucesso
-    return res.json({ success: true, message: 'Informações validadas e atualizadas (exemplo).' });
+    const response = await axios.post(webhookUrl, { humannumber, code });
+    return res.json({ success: true, webhookResponse: response.data });
   } catch (err) {
-    console.error('Erro no update-infos:', err);
-    res.status(500).json({ error: 'Erro ao atualizar informações.' });
+    console.error('Erro ao enviar para webhook:', err?.response?.data || err.message);
+    return res.status(500).json({ error: 'Erro ao enviar para webhook.', details: err?.response?.data || err.message });
   }
 } 
