@@ -66,4 +66,58 @@ export async function publicUpdateHandler(req, res) {
   } catch (err) {
     res.status(500).json({ error: 'Erro no update público.', details: err.message });
   }
+}
+
+export async function verifyEmployeeUserInstance(req, res) {
+  const { userId, employeeId, instance } = req.body;
+  
+  if (!userId || !employeeId || !instance) {
+    return res.status(400).json({ 
+      error: 'userId, employeeId e instance são obrigatórios.' 
+    });
+  }
+
+  try {
+    // Verificar se o usuário existe e pertence à instância especificada
+    const userResult = await pool.query(
+      'SELECT * FROM users WHERE id = $1 AND instance = $2',
+      [userId, instance]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Usuário não encontrado ou não pertence à instância especificada.' 
+      });
+    }
+
+    // Verificar se o funcionário existe e pertence à instância especificada
+    const employeeResult = await pool.query(
+      'SELECT * FROM employees WHERE id = $1 AND instance = $2',
+      [employeeId, instance]
+    );
+
+    if (employeeResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Funcionário não encontrado ou não pertence à instância especificada.' 
+      });
+    }
+
+    // Se ambos existem e pertencem à mesma instância, retornar os dados
+    return res.json({
+      success: true,
+      message: 'Usuário e funcionário pertencem à mesma instância.',
+      data: {
+        user: userResult.rows[0],
+        employee: employeeResult.rows[0],
+        instance: instance
+      }
+    });
+
+  } catch (err) {
+    console.error('Erro ao verificar instância:', err);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor.', 
+      details: err.message 
+    });
+  }
 } 
