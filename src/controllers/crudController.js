@@ -121,3 +121,82 @@ export async function verifyEmployeeUserInstance(req, res) {
     });
   }
 } 
+
+export async function publicScheduleRead(req, res) {
+  const { instance, funcionarioid } = req.body;
+  
+  if (!instance || !funcionarioid) {
+    return res.status(400).json({ 
+      error: 'instance e funcionarioid são obrigatórios.' 
+    });
+  }
+
+  try {
+    // Buscar apenas os horários das reuniões da instância e funcionário especificados
+    const reunioesResult = await pool.query(
+      'SELECT starttime, endtime FROM reunioes WHERE instance = $1 AND funcionarioid = $2 ORDER BY starttime ASC',
+      [instance, funcionarioid]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Horários de reuniões encontrados.',
+      data: {
+        instance: instance,
+        funcionarioid: funcionarioid,
+        horarios: reunioesResult.rows,
+        total: reunioesResult.rows.length
+      }
+    });
+
+  } catch (err) {
+    console.error('Erro ao buscar horários de reuniões:', err);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor.', 
+      details: err.message 
+    });
+  }
+}
+
+export async function publicScheduleCreate(req, res) {
+  const { instance, funcionarioid, usuarioid, starttime, endtime, assunto } = req.body;
+  
+  if (!instance || !funcionarioid || !starttime) {
+    return res.status(400).json({ 
+      error: 'instance, funcionarioid e starttime são obrigatórios.' 
+    });
+  }
+
+  try {
+    // Verificar se o funcionário existe e pertence à instância especificada
+    const employeeResult = await pool.query(
+      'SELECT * FROM funcionarios WHERE id = $1 AND instance = $2',
+      [funcionarioid, instance]
+    );
+
+    if (employeeResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Funcionário não encontrado ou não pertence à instância especificada.' 
+      });
+    }
+
+    // Criar a nova reunião
+    const newReuniaoResult = await pool.query(
+      'INSERT INTO reunioes (instance, funcionarioid, usuarioid, starttime, endtime, assunto) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [instance, funcionarioid, usuarioid || null, starttime, endtime || null, assunto || null]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Reunião criada com sucesso.',
+      data: newReuniaoResult.rows[0]
+    });
+
+  } catch (err) {
+    console.error('Erro ao criar reunião:', err);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor.', 
+      details: err.message 
+    });
+  }
+} 
