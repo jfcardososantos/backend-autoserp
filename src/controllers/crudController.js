@@ -80,7 +80,7 @@ export async function verifyEmployeeUserInstance(req, res) {
   try {
     // Verificar se o usuário existe e pertence à instância especificada
     const userResult = await pool.query(
-      'SELECT * FROM users WHERE id = $1 AND instance = $2',
+      'SELECT * FROM usuarios WHERE id = $1 AND instance = $2',
       [userId, instance]
     );
 
@@ -92,7 +92,7 @@ export async function verifyEmployeeUserInstance(req, res) {
 
     // Verificar se o funcionário existe e pertence à instância especificada
     const employeeResult = await pool.query(
-      'SELECT * FROM employees WHERE id = $1 AND instance = $2',
+      'SELECT * FROM funcionarios WHERE id = $1 AND instance = $2',
       [employeeId, instance]
     );
 
