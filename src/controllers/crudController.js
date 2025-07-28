@@ -158,12 +158,12 @@ export async function publicScheduleRead(req, res) {
   }
 }
 
-export async function publicScheduleCreate(req, res) {
-  const { instance, funcionarioid, usuarioid, starttime, endtime, assunto } = req.body;
+export async function publicScheduleUpdate(req, res) {
+  const { code, instance, funcionarioid, usuarioid, starttime, endtime, assunto } = req.body;
   
-  if (!instance || !funcionarioid || !starttime) {
+  if (!code || !instance || !funcionarioid) {
     return res.status(400).json({ 
-      error: 'instance, funcionarioid e starttime são obrigatórios.' 
+      error: 'code, instance e funcionarioid são obrigatórios.' 
     });
   }
 
@@ -180,20 +180,32 @@ export async function publicScheduleCreate(req, res) {
       });
     }
 
-    // Criar a nova reunião
-    const newReuniaoResult = await pool.query(
-      'INSERT INTO reunioes (instance, funcionarioid, usuarioid, starttime, endtime, assunto) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [instance, funcionarioid, usuarioid || null, starttime, endtime || null, assunto || null]
+    // Verificar se existe uma reunião com o code especificado
+    const existingReuniaoResult = await pool.query(
+      'SELECT * FROM reunioes WHERE code = $1 AND instance = $2',
+      [code, instance]
+    );
+
+    if (existingReuniaoResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Reunião com o código especificado não encontrada.' 
+      });
+    }
+
+    // Atualizar a reunião existente
+    const updateReuniaoResult = await pool.query(
+      'UPDATE reunioes SET funcionarioid = $1, usuarioid = $2, starttime = $3, endtime = $4, assunto = $5 WHERE code = $6 AND instance = $7 RETURNING *',
+      [funcionarioid, usuarioid || null, starttime, endtime || null, assunto || null, code, instance]
     );
 
     return res.json({
       success: true,
-      message: 'Reunião criada com sucesso.',
-      data: newReuniaoResult.rows[0]
+      message: 'Reunião atualizada com sucesso.',
+      data: updateReuniaoResult.rows[0]
     });
 
   } catch (err) {
-    console.error('Erro ao criar reunião:', err);
+    console.error('Erro ao atualizar reunião:', err);
     res.status(500).json({ 
       error: 'Erro interno do servidor.', 
       details: err.message 
