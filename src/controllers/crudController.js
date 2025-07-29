@@ -212,3 +212,45 @@ export async function publicScheduleUpdate(req, res) {
     });
   }
 } 
+
+export async function publicScheduleDelete(req, res) {
+  const { code } = req.body;
+  
+  if (!code) {
+    return res.status(400).json({ 
+      error: 'code é obrigatório.' 
+    });
+  }
+
+  try {
+    // Verificar se existe uma reunião com o code especificado
+    const existingReuniaoResult = await pool.query(
+      'SELECT * FROM reunioes WHERE code = $1',
+      [code]
+    );
+
+    if (existingReuniaoResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Reunião com o código especificado não encontrada.' 
+      });
+    }
+
+    // Deletar a reunião
+    const deleteReuniaoResult = await pool.query(
+      'DELETE FROM reunioes WHERE code = $1 RETURNING *',
+      [code]
+    );
+
+    return res.json({
+      success: true,
+      message: `Reunião ${code} deletada com sucesso.`,
+    });
+
+  } catch (err) {
+    console.error('Erro ao deletar reunião:', err);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor.', 
+      details: err.message 
+    });
+  }
+} 
