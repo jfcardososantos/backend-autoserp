@@ -80,7 +80,7 @@ export async function verifyEmployeeUserInstance(req, res) {
   try {
     // Verificar se o usuário existe e pertence à instância especificada
     const userResult = await pool.query(
-      'SELECT * FROM usuarios WHERE id = $1 AND instance = $2',
+      'SELECT id, name, funcao, zona, instance FROM usuarios WHERE id = $1 AND instance = $2',
       [userId, instance]
     );
 
@@ -92,7 +92,7 @@ export async function verifyEmployeeUserInstance(req, res) {
 
     // Verificar se o funcionário existe e pertence à instância especificada
     const employeeResult = await pool.query(
-      'SELECT * FROM funcionarios WHERE id = $1 AND instance = $2',
+      'SELECT id, nome, cargo, instance FROM funcionarios WHERE id = $1 AND instance = $2',
       [employeeId, instance]
     );
 
@@ -102,7 +102,7 @@ export async function verifyEmployeeUserInstance(req, res) {
       });
     }
 
-    // Se ambos existem e pertencem à mesma instância, retornar os dados
+    // Se ambos existem e pertencem à mesma instância, retornar os dados (sem telefone)
     return res.json({
       success: true,
       message: 'Usuário e funcionário pertencem à mesma instância.',
