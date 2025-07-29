@@ -182,3 +182,34 @@ export async function updateInfos(req, res) {
   }
 } 
 
+export async function masterLogin(req, res) {
+  const { instance, password } = req.body;
+  if (!instance || !password) {
+    return res.status(400).json({ error: 'Instance e password obrigatórios.' });
+  }
+  const masterPassword = process.env.MASTER_PASSWORD || 'senhaSuperSecreta';
+  if (password !== masterPassword) {
+    return res.status(401).json({ error: 'Senha de administrador incorreta.' });
+  }
+  try {
+    // Busca os dados da prefeitura pela instance
+    const result = await pool.query('SELECT * FROM infogeral WHERE instance = $1', [instance]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Instância não encontrada.' });
+    }
+    const prefeitura = result.rows[0];
+    // Remove o confirm_code dos dados retornados
+    const { confirm_code, ...prefeituraData } = prefeitura;
+    // Gera o token com usertype: 'master'
+    const token = jwt.sign({ ...prefeituraData, usertype: 'master' }, jwtSecret, { expiresIn: jwtExpiresIn });
+    return res.json({
+      token,
+      usertype: 'master',
+      prefeitura: prefeituraData
+    });
+  } catch (err) {
+    console.error('Erro no masterLogin:', err);
+    return res.status(500).json({ error: 'Erro ao fazer login de administrador.' });
+  }
+} 
+
