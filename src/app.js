@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import authRoutes from './routes/auth.js';
 import crudRoutes from './routes/crud.js';
 import codeRoutes from './routes/code.js';
+import metricsRoutes from './routes/metrics.js';
 import cors from 'cors';
 import { createClient } from 'redis';
 
@@ -113,6 +114,7 @@ export { pool, redisClient };
 app.use('/auth', authRoutes);
 app.use('/crud', crudRoutes);
 app.use('/code', codeRoutes);
+app.use('/metrics', metricsRoutes);
 
 app.get('/', (req, res) => {
   res.send('autoSERP API started');
