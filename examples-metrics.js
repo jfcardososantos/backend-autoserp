@@ -49,7 +49,7 @@ async function comparacaoSemanal() {
   console.log('📊 Comparação Semanal\n');
   
   const today = new Date();
-  const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const lastWeekDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
   const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
   
   // Semana atual
@@ -67,22 +67,22 @@ async function comparacaoSemanal() {
   const currentWeekUrl = `${BASE_URL}/metrics/range?start_date=${currentWeekStart.toISOString().split('T')[0]}&end_date=${currentWeekEnd.toISOString().split('T')[0]}&group_by=day`;
   const lastWeekUrl = `${BASE_URL}/metrics/range?start_date=${lastWeekStart.toISOString().split('T')[0]}&end_date=${lastWeekEnd.toISOString().split('T')[0]}&group_by=day`;
   
-  const [currentWeek, lastWeek] = await Promise.all([
+  const [currentWeek, lastWeekData] = await Promise.all([
     fetchMetrics(currentWeekUrl),
     fetchMetrics(lastWeekUrl)
   ]);
   
-  if (currentWeek.success && lastWeek.success) {
+  if (currentWeek.success && lastWeekData.success) {
     console.log('Semana Atual vs Semana Anterior:');
     
     const currentTotal = currentWeek.data.metrics.recados?.reduce((sum, day) => sum + day.total, 0) || 0;
-    const lastTotal = lastWeek.data.metrics.recados?.reduce((sum, day) => sum + day.total, 0) || 0;
+    const lastTotal = lastWeekData.data.metrics.recados?.reduce((sum, day) => sum + day.total, 0) || 0;
     
     const growth = ((currentTotal - lastTotal) / lastTotal * 100).toFixed(1);
     console.log(`  - Recados: ${currentTotal} vs ${lastTotal} (${growth}%)`);
     
     const currentMeetings = currentWeek.data.metrics.reunioes?.reduce((sum, day) => sum + day.total, 0) || 0;
-    const lastMeetings = lastWeek.data.metrics.reunioes?.reduce((sum, day) => sum + day.total, 0) || 0;
+    const lastMeetings = lastWeekData.data.metrics.reunioes?.reduce((sum, day) => sum + day.total, 0) || 0;
     
     const meetingGrowth = ((currentMeetings - lastMeetings) / lastMeetings * 100).toFixed(1);
     console.log(`  - Reuniões: ${currentMeetings} vs ${lastMeetings} (${meetingGrowth}%)\n`);
