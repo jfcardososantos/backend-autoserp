@@ -2,13 +2,13 @@ import { pool } from '../app.js';
 
 export async function getMetrics(req, res) {
   try {
-    const { period = 'all', instance } = req.query;
+    const { period = 'all', instance, start_date, end_date, specific_date } = req.query;
     
     // Validação do período
-    const validPeriods = ['day', 'week', 'month', 'year', 'all'];
+    const validPeriods = ['day', 'week', 'month', 'year', 'all', 'custom'];
     if (!validPeriods.includes(period)) {
       return res.status(400).json({ 
-        error: 'Período inválido. Use: day, week, month, year, all' 
+        error: 'Período inválido. Use: day, week, month, year, all, custom' 
       });
     }
 
@@ -17,7 +17,54 @@ export async function getMetrics(req, res) {
     let dateParams = [];
     let paramIndex = 1;
 
-    if (period !== 'all') {
+    // Função para validar formato de data
+    const isValidDate = (dateString) => {
+      const date = new Date(dateString);
+      return date instanceof Date && !isNaN(date);
+    };
+
+    if (period === 'custom') {
+      // Validação para intervalo de datas customizado
+      if (start_date && end_date) {
+        if (!isValidDate(start_date) || !isValidDate(end_date)) {
+          return res.status(400).json({ 
+            error: 'Formato de data inválido. Use: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss.sssZ' 
+          });
+        }
+        
+        const startDate = new Date(start_date);
+        const endDate = new Date(end_date);
+        
+        if (startDate > endDate) {
+          return res.status(400).json({ 
+            error: 'Data inicial não pode ser maior que a data final' 
+          });
+        }
+
+        dateFilter = `WHERE created_at >= $${paramIndex} AND created_at <= $${paramIndex + 1}`;
+        dateParams.push(startDate.toISOString(), endDate.toISOString());
+        paramIndex += 2;
+      } else if (specific_date) {
+        // Data específica
+        if (!isValidDate(specific_date)) {
+          return res.status(400).json({ 
+            error: 'Formato de data inválido. Use: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss.sssZ' 
+          });
+        }
+        
+        const specificDate = new Date(specific_date);
+        const nextDay = new Date(specificDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        
+        dateFilter = `WHERE created_at >= $${paramIndex} AND created_at < $${paramIndex + 1}`;
+        dateParams.push(specificDate.toISOString(), nextDay.toISOString());
+        paramIndex += 2;
+      } else {
+        return res.status(400).json({ 
+          error: 'Para período custom, forneça start_date e end_date OU specific_date' 
+        });
+      }
+    } else if (period !== 'all') {
       const now = new Date();
       let startDate;
 
@@ -162,6 +209,13 @@ export async function getMetrics(req, res) {
       period,
       instance: instance || 'all',
       timestamp: new Date().toISOString(),
+      ...(period === 'custom' && {
+        date_range: {
+          start_date: start_date || specific_date,
+          end_date: end_date || specific_date,
+          specific_date: specific_date || null
+        }
+      }),
       metrics: {
         ...results,
         ...additionalMetrics
@@ -232,6 +286,161 @@ export async function getRealTimeMetrics(req, res) {
     console.error('Erro ao obter métricas em tempo real:', error);
     res.status(500).json({ 
       error: 'Erro interno do servidor ao obter métricas em tempo real',
+      details: error.message 
+    });
+  }
+}
+
+// Endpoint para métricas por intervalo de datas específico
+export async function getMetricsByDateRange(req, res) {
+  try {
+    const { start_date, end_date, instance, group_by } = req.query;
+    
+    // Validação dos parâmetros obrigatórios
+    if (!start_date || !end_date) {
+      return res.status(400).json({ 
+        error: 'start_date e end_date são obrigatórios' 
+      });
+    }
+
+    // Função para validar formato de data
+    const isValidDate = (dateString) => {
+      const date = new Date(dateString);
+      return date instanceof Date && !isNaN(date);
+    };
+
+    if (!isValidDate(start_date) || !isValidDate(end_date)) {
+      return res.status(400).json({ 
+        error: 'Formato de data inválido. Use: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss.sssZ' 
+      });
+    }
+
+    const startDate = new Date(start_date);
+    const endDate = new Date(end_date);
+    
+    if (startDate > endDate) {
+      return res.status(400).json({ 
+        error: 'Data inicial não pode ser maior que a data final' 
+      });
+    }
+
+    // Validação do group_by
+    const validGroupBy = ['day', 'week', 'month', 'none'];
+    const groupBy = group_by || 'none';
+    if (!validGroupBy.includes(groupBy)) {
+      return res.status(400).json({ 
+        error: 'group_by inválido. Use: day, week, month, none' 
+      });
+    }
+
+    let dateFilter = 'WHERE created_at >= $1 AND created_at <= $2';
+    let params = [startDate.toISOString(), endDate.toISOString()];
+    let paramIndex = 3;
+
+    if (instance) {
+      dateFilter += ' AND instance = $3';
+      params.push(instance);
+      paramIndex++;
+    }
+
+    // Se group_by for 'none', retorna métricas agregadas
+    if (groupBy === 'none') {
+      const queries = {
+        funcionarios: `SELECT COUNT(*) as total FROM funcionarios ${dateFilter}`,
+        infogeral: `SELECT COUNT(*) as total FROM infogeral ${dateFilter}`,
+        informacoes_to_vector: `SELECT COUNT(*) as total FROM informacoes_to_vector ${dateFilter}`,
+        n8n_chat_histories_dados_ia: `SELECT COUNT(*) as total FROM n8n_chat_histories_dados_ia ${dateFilter}`,
+        n8n_chat_histories_informacoes_ia: `SELECT COUNT(*) as total FROM n8n_chat_histories_informacoes_ia ${dateFilter}`,
+        recados: `SELECT COUNT(*) as total FROM recados ${dateFilter}`,
+        reunioes: `SELECT COUNT(*) as total FROM reunioes ${dateFilter}`,
+        usuarios: `SELECT COUNT(*) as total FROM usuarios ${dateFilter}`
+      };
+
+      const results = {};
+      
+      for (const [tableName, query] of Object.entries(queries)) {
+        try {
+          const result = await pool.query(query, params);
+          results[tableName] = parseInt(result.rows[0].total);
+        } catch (error) {
+          console.error(`Erro ao consultar ${tableName}:`, error);
+          results[tableName] = 0;
+        }
+      }
+
+      res.json({
+        period: 'custom_range',
+        instance: instance || 'all',
+        start_date: start_date,
+        end_date: end_date,
+        timestamp: new Date().toISOString(),
+        metrics: results,
+        summary: {
+          total_records: Object.values(results).reduce((sum, count) => sum + count, 0),
+          total_tables: Object.keys(results).length
+        }
+      });
+    } else {
+      // Agrupamento por período
+      let groupByClause = '';
+      let dateFormat = '';
+      
+      switch (groupBy) {
+        case 'day':
+          groupByClause = 'DATE(created_at)';
+          dateFormat = 'YYYY-MM-DD';
+          break;
+        case 'week':
+          groupByClause = 'DATE_TRUNC(\'week\', created_at)';
+          dateFormat = 'YYYY-MM-DD';
+          break;
+        case 'month':
+          groupByClause = 'DATE_TRUNC(\'month\', created_at)';
+          dateFormat = 'YYYY-MM';
+          break;
+      }
+
+      const queries = {
+        funcionarios: `SELECT ${groupByClause} as period, COUNT(*) as total FROM funcionarios ${dateFilter} GROUP BY ${groupByClause} ORDER BY period`,
+        infogeral: `SELECT ${groupByClause} as period, COUNT(*) as total FROM infogeral ${dateFilter} GROUP BY ${groupByClause} ORDER BY period`,
+        informacoes_to_vector: `SELECT ${groupByClause} as period, COUNT(*) as total FROM informacoes_to_vector ${dateFilter} GROUP BY ${groupByClause} ORDER BY period`,
+        n8n_chat_histories_dados_ia: `SELECT ${groupByClause} as period, COUNT(*) as total FROM n8n_chat_histories_dados_ia ${dateFilter} GROUP BY ${groupByClause} ORDER BY period`,
+        n8n_chat_histories_informacoes_ia: `SELECT ${groupByClause} as period, COUNT(*) as total FROM n8n_chat_histories_informacoes_ia ${dateFilter} GROUP BY ${groupByClause} ORDER BY period`,
+        recados: `SELECT ${groupByClause} as period, COUNT(*) as total FROM recados ${dateFilter} GROUP BY ${groupByClause} ORDER BY period`,
+        reunioes: `SELECT ${groupByClause} as period, COUNT(*) as total FROM reunioes ${dateFilter} GROUP BY ${groupByClause} ORDER BY period`,
+        usuarios: `SELECT ${groupByClause} as period, COUNT(*) as total FROM usuarios ${dateFilter} GROUP BY ${groupByClause} ORDER BY period`
+      };
+
+      const results = {};
+      
+      for (const [tableName, query] of Object.entries(queries)) {
+        try {
+          const result = await pool.query(query, params);
+          results[tableName] = result.rows.map(row => ({
+            period: row.period,
+            total: parseInt(row.total)
+          }));
+        } catch (error) {
+          console.error(`Erro ao consultar ${tableName}:`, error);
+          results[tableName] = [];
+        }
+      }
+
+      res.json({
+        period: 'custom_range',
+        group_by: groupBy,
+        instance: instance || 'all',
+        start_date: start_date,
+        end_date: end_date,
+        timestamp: new Date().toISOString(),
+        metrics: results
+      });
+    }
+
+  } catch (error) {
+    console.error('Erro ao obter métricas por intervalo de datas:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor ao obter métricas por intervalo de datas',
       details: error.message 
     });
   }

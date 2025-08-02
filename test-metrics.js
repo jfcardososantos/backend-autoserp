@@ -90,6 +90,63 @@ async function testMetrics() {
       error: data8.error
     });
 
+    // Teste 9: Métricas de período customizado (data específica)
+    console.log('\n9️⃣ Testando métricas de data específica...');
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const response9 = await fetch(`${BASE_URL}/metrics?period=custom&specific_date=${today}`);
+    const data9 = await response9.json();
+    console.log('✅ Métricas de data específica:', {
+      period: data9.period,
+      date_range: data9.date_range,
+      funcionarios: data9.metrics?.funcionarios,
+      recados: data9.metrics?.recados
+    });
+
+    // Teste 10: Métricas de período customizado (intervalo)
+    console.log('\n🔟 Testando métricas de intervalo de datas...');
+    const startDate = '2024-01-01';
+    const endDate = '2024-01-31';
+    const response10 = await fetch(`${BASE_URL}/metrics?period=custom&start_date=${startDate}&end_date=${endDate}`);
+    const data10 = await response10.json();
+    console.log('✅ Métricas de intervalo:', {
+      period: data10.period,
+      date_range: data10.date_range,
+      funcionarios: data10.metrics?.funcionarios,
+      recados: data10.metrics?.recados
+    });
+
+    // Teste 11: Métricas por intervalo de datas (endpoint específico)
+    console.log('\n1️⃣1️⃣ Testando endpoint de intervalo de datas...');
+    const response11 = await fetch(`${BASE_URL}/metrics/range?start_date=${startDate}&end_date=${endDate}`);
+    const data11 = await response11.json();
+    console.log('✅ Endpoint de intervalo:', {
+      period: data11.period,
+      start_date: data11.start_date,
+      end_date: data11.end_date,
+      funcionarios: data11.metrics?.funcionarios,
+      recados: data11.metrics?.recados
+    });
+
+    // Teste 12: Métricas por intervalo com agrupamento por dia
+    console.log('\n1️⃣2️⃣ Testando agrupamento por dia...');
+    const response12 = await fetch(`${BASE_URL}/metrics/range?start_date=${startDate}&end_date=${endDate}&group_by=day`);
+    const data12 = await response12.json();
+    console.log('✅ Agrupamento por dia:', {
+      period: data12.period,
+      group_by: data12.group_by,
+      funcionarios_count: data12.metrics?.funcionarios?.length || 0,
+      recados_count: data12.metrics?.recados?.length || 0
+    });
+
+    // Teste 13: Erro de intervalo inválido
+    console.log('\n1️⃣3️⃣ Testando erro de intervalo inválido...');
+    const response13 = await fetch(`${BASE_URL}/metrics/range?start_date=2024-01-31&end_date=2024-01-01`);
+    const data13 = await response13.json();
+    console.log('✅ Erro de intervalo inválido:', {
+      status: response13.status,
+      error: data13.error
+    });
+
     console.log('\n🎉 Todos os testes concluídos!');
 
   } catch (error) {
