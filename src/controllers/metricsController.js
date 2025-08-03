@@ -22,7 +22,6 @@ export async function getMetrics(req, res) {
   try {
     const { period = 'all', instance, start_date, end_date, specific_date } = req.query;
     
-    // Validação do período
     const validPeriods = ['day', 'week', 'month', 'year', 'all', 'custom'];
     if (!validPeriods.includes(period)) {
       return res.status(400).json({ 
@@ -30,31 +29,22 @@ export async function getMetrics(req, res) {
       });
     }
 
-    // Construir filtro de data baseado no período
     let dateFilter = '';
     let dateParams = [];
     let paramIndex = 1;
 
-    // Função para validar formato de data
     const isValidDate = (dateString) => {
       const date = new Date(dateString);
       return date instanceof Date && !isNaN(date);
     };
+    const isDateOnly = (dateStr) => /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
 
     if (period === 'custom') {
-      // Validação para intervalo de datas customizado
       if (start_date && end_date) {
         if (!isValidDate(start_date) || !isValidDate(end_date)) {
-          return res.status(400).json({ 
-            error: 'Formato de data inválido. Use: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss.sssZ' 
-          });
+          return res.status(400).json({ error: 'Formato de data inválido. Use: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss.sssZ' });
         }
-        
-        // Se as datas são apenas YYYY-MM-DD, criar range completo do dia
-        const isDateOnly = (dateStr) => /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
-        
         let startDate, endDate;
-        
         if (isDateOnly(start_date) && isDateOnly(end_date)) {
           const startRange = createDayRange(start_date);
           const endRange = createDayRange(end_date);
@@ -64,76 +54,77 @@ export async function getMetrics(req, res) {
           startDate = new Date(start_date);
           endDate = new Date(end_date);
         }
-        
         if (startDate > endDate) {
-          return res.status(400).json({ 
-            error: 'Data inicial não pode ser maior que a data final' 
-          });
+          return res.status(400).json({ error: 'Data inicial não pode ser maior que a data final' });
         }
-
         dateFilter = `WHERE created_at >= $${paramIndex} AND created_at <= $${paramIndex + 1}`;
         dateParams.push(startDate.toISOString(), endDate.toISOString());
         paramIndex += 2;
       } else if (specific_date) {
-        // Data específica
         if (!isValidDate(specific_date)) {
-          return res.status(400).json({ 
-            error: 'Formato de data inválido. Use: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss.sssZ' 
-          });
+          return res.status(400).json({ error: 'Formato de data inválido. Use: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss.sssZ' });
         }
-        
-        // Se a data é apenas YYYY-MM-DD, criar range completo do dia
-        const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(specific_date);
-        
         let specificDate, nextDay;
-        
-        if (isDateOnly) {
-          // Para datas específicas, usar um range que sabemos que funciona
-          // Baseado nos testes, os dados estão entre 18:00 e 23:59 UTC
-          const date = new Date(specific_date);
-          specificDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 18, 0, 0, 0);
-          nextDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+        if (isDateOnly(specific_date)) {
+          const range = createDayRange(specific_date);
+          specificDate = range.startOfDay;
+          nextDay = new Date(range.endOfDay.getTime() + 1); // +1ms para incluir até 23:59:59.999
         } else {
           specificDate = new Date(specific_date);
           nextDay = new Date(specificDate);
           nextDay.setDate(nextDay.getDate() + 1);
         }
-        
         dateFilter = `WHERE created_at >= $${paramIndex} AND created_at < $${paramIndex + 1}`;
         dateParams.push(specificDate.toISOString(), nextDay.toISOString());
         paramIndex += 2;
       } else {
-        return res.status(400).json({ 
-          error: 'Para período custom, forneça start_date e end_date OU specific_date' 
-        });
+        return res.status(400).json({ error: 'Para período custom, forneça start_date e end_date OU specific_date' });
       }
     } else if (period !== 'all') {
       const now = new Date();
-      let startDate;
-
+      let startDate, endDate;
       switch (period) {
-        case 'day':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        case 'day': {
+          const range = createDayRange(now);
+          startDate = range.startOfDay;
+          endDate = range.endOfDay;
           break;
-        case 'week':
+        }
+        case 'week': {
           const dayOfWeek = now.getDay();
           const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysToSubtract, 0, 0, 0, 0);
+          const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysToSubtract);
+          const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+          const startRange = createDayRange(weekStart);
+          const endRange = createDayRange(weekEnd);
+          startDate = startRange.startOfDay;
+          endDate = endRange.endOfDay;
           break;
-        case 'month':
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        }
+        case 'month': {
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+          const startRange = createDayRange(monthStart);
+          const endRange = createDayRange(monthEnd);
+          startDate = startRange.startOfDay;
+          endDate = endRange.endOfDay;
           break;
-        case 'year':
-          startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+        }
+        case 'year': {
+          const yearStart = new Date(now.getFullYear(), 0, 1);
+          const yearEnd = new Date(now.getFullYear(), 11, 31);
+          const startRange = createDayRange(yearStart);
+          const endRange = createDayRange(yearEnd);
+          startDate = startRange.startOfDay;
+          endDate = endRange.endOfDay;
           break;
+        }
       }
-
-      dateFilter = `WHERE created_at >= $${paramIndex}`;
-      dateParams.push(startDate.toISOString());
-      paramIndex++;
+      dateFilter = `WHERE created_at >= $${paramIndex} AND created_at <= $${paramIndex + 1}`;
+      dateParams.push(startDate.toISOString(), endDate.toISOString());
+      paramIndex += 2;
     }
 
-    // Adicionar filtro de instance se fornecido
     if (instance) {
       const instanceFilter = dateFilter ? 'AND' : 'WHERE';
       dateFilter += ` ${instanceFilter} instance = $${paramIndex}`;
