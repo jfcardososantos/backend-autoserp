@@ -106,13 +106,26 @@ export async function verifyEmployeeUserInstance(req, res) {
       });
     }
 
-    // Se ambos existem e pertencem à mesma instância, retornar os dados (sem telefone)
+    // Buscar informações da instância na tabela infogeral
+    const infoGeralResult = await pool.query(
+      'SELECT cargo, municipio, tipo FROM infogeral WHERE instance = $1',
+      [instance]
+    );
+
+    if (infoGeralResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Informações gerais da instância não encontradas.'
+      });
+    }
+
+    // Se todos existem e pertencem à mesma instância, retornar os dados
     return res.json({
       success: true,
       message: 'Usuário e funcionário pertencem à mesma instância.',
       data: {
         user: userResult.rows[0],
         employee: employeeResult.rows[0],
+        infoGeral: infoGeralResult.rows[0],
         instance: instance
       }
     });
