@@ -108,7 +108,7 @@ export async function verifyEmployeeUserInstance(req, res) {
 
     // Buscar informações da instância na tabela infogeral
     const infoGeralResult = await pool.query(
-      'SELECT cargo, municipio, tipo FROM infogeral WHERE instance = $1',
+      'SELECT orgao, municipio, tipo FROM infogeral WHERE instance = $1',
       [instance]
     );
 
